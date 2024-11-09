@@ -1,0 +1,69 @@
+-- Variables
+local player = game.Players.LocalPlayer
+local junkFolder = game.Workspace:WaitForChild("Junk") -- Folder where all footballs are stored
+local UserInputService = game:GetService("UserInputService")
+
+-- Normal and extended hitbox sizes
+local normalHitboxSize = Vector3.new(4, 4, 4)  -- Normal size of the football
+local extendedHitboxSize = Vector3.new(8, 8, 8)  -- Extended hitbox size
+
+-- Function to position all footballs between the player's thighs and chest
+local function positionFootballBetweenThighsAndChest()
+    -- Check if the player's character and essential body parts exist
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("UpperTorso") and player.Character:FindFirstChild("LowerTorso") then
+        -- Get the positions of the UpperTorso and LowerTorso
+        local upperTorsoPosition = player.Character.UpperTorso.Position
+        local lowerTorsoPosition = player.Character.LowerTorso.Position
+
+        -- Calculate a position halfway between the UpperTorso and LowerTorso (can adjust for different heights)
+        local targetPosition = upperTorsoPosition:Lerp(lowerTorsoPosition, 0.5)  -- 0.5 is the midpoint between the two
+
+        -- Iterate through all "Football" parts in the Junk folder
+        for _, football in pairs(junkFolder:GetChildren()) do
+            if football.Name == "Football" then
+                -- Set the football's position to the calculated target position
+                football.Position = targetPosition
+                football.AssemblyLinearVelocity = Vector3.new(0, 0, 0) -- Reset any momentum
+
+                -- Temporarily disable collision while teleporting to avoid bugs
+                football.CanCollide = false
+
+                -- Apply a temporary BodyPosition to keep the football in place
+                local bodyPosition = Instance.new("BodyPosition")
+                bodyPosition.Position = targetPosition
+                bodyPosition.MaxForce = Vector3.new(1000, 1000, 1000)
+                bodyPosition.Parent = football
+
+                -- Remove the BodyPosition after a short delay to prevent continuous movement
+                game.Debris:AddItem(bodyPosition, 0.5)
+
+                -- Temporarily extend the hitbox size
+                football.Size = extendedHitboxSize
+                football.CanCollide = true  -- Enable collision while the hitbox is extended
+
+                -- Wait a short time before detecting touch
+                wait(0.2)  -- You can adjust the delay to your liking
+
+                -- Detect when the football touches the player
+                football.Touched:Connect(function(hit)
+                    -- Check if the hit is the player's character
+                    if hit.Parent == player.Character then
+                        -- Revert the football's size and collision properties back to normal
+                        football.Size = normalHitboxSize  -- Revert football size back to normal
+                        football.CanCollide = true  -- Re-enable collision
+                    end
+                end)
+            end
+        end
+    else
+        warn("Player or necessary body parts (UpperTorso, LowerTorso) not found!")
+    end
+end
+
+-- Bind the "H" key to position the footballs between the player's thighs and chest
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- Check if "H" key is pressed and game isn't processing other actions
+    if input.KeyCode == Enum.KeyCode.H and not gameProcessed then
+        positionFootballBetweenThighsAndChest()
+    end
+end)
